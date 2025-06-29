@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { formatCurrency, formatDate } from '../utils/format';
+import ErrorAlert, { AlertType } from '../components/ErrorAlert';
+import toast from 'react-hot-toast';
 
 interface Transaction {
   id: number;
@@ -31,6 +34,10 @@ const Transactions: React.FC = () => {
   const [exportColumns, setExportColumns] = useState<string[]>(['date', 'amount', 'category', 'status']);
   const [includeHeaders, setIncludeHeaders] = useState(true);
   
+  // Error handling states
+  const [error, setError] = useState<{ type: AlertType; title: string; message: string } | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  
   const allColumns = [
     { key: 'id', label: 'ID' },
     { key: 'date', label: 'Date' },
@@ -43,6 +50,7 @@ const Transactions: React.FC = () => {
   useEffect(() => {
     const loadTransactions = async () => {
       try {
+        setError(null);
         const token = localStorage.getItem('token');
         
         if (token) {
@@ -61,21 +69,34 @@ const Transactions: React.FC = () => {
               );
               setTransactions(sortedData);
               setLoading(false);
+              toast.success('Transactions loaded successfully');
               return;
             }
+          } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
         }
 
         // Fallback to static JSON
         const response = await fetch('/transactions.json');
+        if (!response.ok) {
+          throw new Error('Failed to load transactions data');
+        }
         const data = await response.json();
         const sortedData = data.sort((a: Transaction, b: Transaction) => 
           new Date(b.date).getTime() - new Date(a.date).getTime()
         );
         setTransactions(sortedData);
         setLoading(false);
+        toast.success('Transactions loaded from local data');
       } catch (error) {
         console.error('Error loading transactions:', error);
+        setError({
+          type: 'error',
+          title: 'Failed to Load Transactions',
+          message: error instanceof Error ? error.message : 'An unexpected error occurred while loading transactions.'
+        });
+        toast.error('Failed to load transactions');
         setLoading(false);
       }
     };
@@ -160,39 +181,59 @@ const Transactions: React.FC = () => {
     });
     setSearchTerm('');
     setCurrentPage(1);
+    toast.success('Filters cleared');
   };
 
   const handleExport = async () => {
-    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-    const config = {
-      columns: exportColumns,
-      includeHeaders,
-    };
-    const exportFilters = { 
-      ...filters,
-      searchTerm: searchTerm // Include search term in export filters
-    };
-    const response = await fetch('http://localhost:5000/api/transactions/export-csv', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ config, filters: exportFilters }),
-    });
-    if (response.ok) {
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'transactions.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      setShowExportModal(false);
-    } else {
-      alert('Failed to export CSV');
+    try {
+      setExportLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      const config = {
+        columns: exportColumns,
+        includeHeaders,
+      };
+      const exportFilters = { 
+        ...filters,
+        searchTerm: searchTerm // Include search term in export filters
+      };
+      
+      const response = await fetch('http://localhost:5000/api/transactions/export-csv', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ config, filters: exportFilters }),
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'transactions.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        setShowExportModal(false);
+        toast.success('CSV exported successfully');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Export failed with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setError({
+        type: 'error',
+        title: 'Export Failed',
+        message: error instanceof Error ? error.message : 'Failed to export CSV file. Please try again.'
+      });
+      toast.error('Failed to export CSV');
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -213,16 +254,16 @@ const Transactions: React.FC = () => {
         </div>
         
         <nav className="space-y-2">
-          <a href="/" className="flex items-center p-3 rounded-lg transition-colors duration-200 hover:bg-white/5" 
+          <Link to="/" className="flex items-center p-3 rounded-lg transition-colors duration-200 hover:bg-white/5" 
              style={{ color: '#D1D1D1' }}>
             <span className="mr-3">📊</span>
             Dashboard
-          </a>
-          <a href="/transactions" className="flex items-center p-3 rounded-lg transition-colors duration-200" 
+          </Link>
+          <Link to="/transactions" className="flex items-center p-3 rounded-lg transition-colors duration-200" 
              style={{ backgroundColor: 'rgba(0, 255, 132, 0.1)', color: '#00FF84', border: '1px solid #00FF84' }}>
             <span className="mr-3">💳</span>
             Transactions
-          </a>
+          </Link>
           <a href="#" className="flex items-center p-3 rounded-lg transition-colors duration-200 hover:bg-white/5" 
              style={{ color: '#D1D1D1' }}>
             <span className="mr-3">💰</span>
@@ -254,155 +295,139 @@ const Transactions: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 p-6">
         {/* Header */}
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-white">Transactions</h1>
-          <button
-            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition"
-            onClick={() => setShowExportModal(true)}
-          >
-            Export CSV
-          </button>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Transactions</h1>
+            <p className="text-gray-400">Manage and analyze your financial transactions</p>
+          </div>
         </div>
 
+        {/* Error Alert */}
+        {error && (
+          <ErrorAlert
+            type={error.type}
+            title={error.title}
+            message={error.message}
+            onClose={() => setError(null)}
+          />
+        )}
+
+        {/* Success Message for Data Load */}
+        {!error && transactions.length > 0 && (
+          <ErrorAlert
+            type="success"
+            title="Data Loaded Successfully"
+            message={`${transactions.length} transactions loaded. Showing ${paginatedTransactions.length} of ${filteredTransactions.length} filtered results.`}
+            onClose={() => {}}
+            show={false} // Hidden by default, can be shown if needed
+          />
+        )}
+
         {/* Search and Filters */}
-        <div className="rounded-xl p-6 border border-white/10 mb-6" style={{ backgroundColor: '#2F3246' }}>
+        <div className="rounded-xl border border-white/10 p-6 mb-6" style={{ backgroundColor: '#2F3246' }}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            {/* Search */}
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium mb-2" style={{ color: '#D1D1D1' }}>Search</label>
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">Search</label>
               <input
                 type="text"
-                placeholder="Search by user, status, category, or amount..."
+                placeholder="Search transactions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg text-sm"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
               />
             </div>
-
-            {/* Category Filter */}
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: '#D1D1D1' }}>Category</label>
+              <label className="block text-sm font-medium text-white mb-2">Category</label>
               <select
                 value={filters.category}
                 onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                className="w-full px-4 py-2 rounded-lg text-sm"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:border-green-500"
+                style={{ backgroundColor: '#2F3246' }}
               >
-                <option value="">All Categories</option>
+                <option value="" style={{ backgroundColor: '#2F3246', color: '#FFFFFF' }}>All Categories</option>
                 {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                  <option key={category} value={category} style={{ backgroundColor: '#2F3246', color: '#FFFFFF' }}>{category}</option>
                 ))}
               </select>
             </div>
-
-            {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: '#D1D1D1' }}>Status</label>
+              <label className="block text-sm font-medium text-white mb-2">Status</label>
               <select
                 value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="w-full px-4 py-2 rounded-lg text-sm"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:border-green-500"
+                style={{ backgroundColor: '#2F3246' }}
               >
-                <option value="">All Statuses</option>
+                <option value="" style={{ backgroundColor: '#2F3246', color: '#FFFFFF' }}>All Statuses</option>
                 {statuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
+                  <option key={status} value={status} style={{ backgroundColor: '#2F3246', color: '#FFFFFF' }}>{status}</option>
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">Date Range</label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:border-green-500"
+                />
+                <input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:border-green-500"
+                />
+              </div>
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            {/* Date From */}
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: '#D1D1D1' }}>Date From</label>
-              <input
-                type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                className="w-full px-4 py-2 rounded-lg text-sm"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
-              />
-            </div>
-
-            {/* Date To */}
-            <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: '#D1D1D1' }}>Date To</label>
-              <input
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                className="w-full px-4 py-2 rounded-lg text-sm"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
-              />
-            </div>
-
-            {/* Amount Min */}
-            <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: '#D1D1D1' }}>Min Amount</label>
+              <label className="block text-sm font-medium text-white mb-2">Min Amount</label>
               <input
                 type="number"
-                placeholder="0"
+                placeholder="Min amount"
                 value={filters.amountMin}
                 onChange={(e) => setFilters({ ...filters, amountMin: e.target.value })}
-                className="w-full px-4 py-2 rounded-lg text-sm"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
               />
             </div>
-
-            {/* Amount Max */}
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: '#D1D1D1' }}>Max Amount</label>
+              <label className="block text-sm font-medium text-white mb-2">Max Amount</label>
               <input
                 type="number"
-                placeholder="10000"
+                placeholder="Max amount"
                 value={filters.amountMax}
                 onChange={(e) => setFilters({ ...filters, amountMax: e.target.value })}
-                className="w-full px-4 py-2 rounded-lg text-sm"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
               />
             </div>
-          </div>
-
-          {/* Filter Actions */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-end space-x-2">
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 rounded-lg text-sm transition-colors duration-200"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                className="px-4 py-2 rounded-lg border border-white/10 text-white hover:bg-white/5 transition-colors duration-200"
               >
                 Clear Filters
               </button>
-              <span className="text-sm" style={{ color: '#D1D1D1' }}>
-                {filteredTransactions.length} of {transactions.length} transactions
-              </span>
-            </div>
-
-            {/* Sort Options */}
-            <div className="flex items-center space-x-2">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 rounded-lg text-sm"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
-              >
-                <option value="date">Sort by Date</option>
-                <option value="amount">Sort by Amount</option>
-                <option value="user_id">Sort by User</option>
-                <option value="category">Sort by Category</option>
-                <option value="status">Sort by Status</option>
-              </select>
               <button
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="px-3 py-2 rounded-lg text-sm transition-colors duration-200"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                onClick={() => setShowExportModal(true)}
+                className="px-4 py-2 rounded-lg text-white transition-colors duration-200"
+                style={{ backgroundColor: '#00FF84', color: '#000' }}
               >
-                {sortOrder === 'asc' ? '↑' : '↓'}
+                Export CSV
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Results Summary */}
+        <div className="mb-4">
+          <p className="text-gray-400">
+            Showing {paginatedTransactions.length} of {filteredTransactions.length} transactions
+            {searchTerm && ` matching "${searchTerm}"`}
+          </p>
         </div>
 
         {/* Transactions Table */}
@@ -411,20 +436,45 @@ const Transactions: React.FC = () => {
             <table className="w-full">
               <thead>
                 <tr style={{ backgroundColor: '#1E1E2F' }}>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#D1D1D1' }}>
-                    Date
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer" 
+                      style={{ color: '#D1D1D1' }}
+                      onClick={() => {
+                        setSortBy('date');
+                        setSortOrder(sortBy === 'date' && sortOrder === 'asc' ? 'desc' : 'asc');
+                      }}>
+                    Date {sortBy === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#D1D1D1' }}>
-                    Amount
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer" 
+                      style={{ color: '#D1D1D1' }}
+                      onClick={() => {
+                        setSortBy('amount');
+                        setSortOrder(sortBy === 'amount' && sortOrder === 'asc' ? 'desc' : 'asc');
+                      }}>
+                    Amount {sortBy === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#D1D1D1' }}>
-                    Category
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer" 
+                      style={{ color: '#D1D1D1' }}
+                      onClick={() => {
+                        setSortBy('category');
+                        setSortOrder(sortBy === 'category' && sortOrder === 'asc' ? 'desc' : 'asc');
+                      }}>
+                    Category {sortBy === 'category' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#D1D1D1' }}>
-                    Status
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer" 
+                      style={{ color: '#D1D1D1' }}
+                      onClick={() => {
+                        setSortBy('status');
+                        setSortOrder(sortBy === 'status' && sortOrder === 'asc' ? 'desc' : 'asc');
+                      }}>
+                    Status {sortBy === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#D1D1D1' }}>
-                    User ID
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer" 
+                      style={{ color: '#D1D1D1' }}
+                      onClick={() => {
+                        setSortBy('user_id');
+                        setSortOrder(sortBy === 'user_id' && sortOrder === 'asc' ? 'desc' : 'asc');
+                      }}>
+                    User ID {sortBy === 'user_id' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </th>
                 </tr>
               </thead>
@@ -434,14 +484,14 @@ const Transactions: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: '#FFFFFF' }}>
                       {formatDate(transaction.date)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: transaction.category === 'Revenue' ? '#00FF84' : '#FF6B6B' }}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: transaction.category === 'Revenue' ? '#00FF84' : '#FFC043' }}>
                       {formatCurrency(transaction.amount)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: '#FFFFFF' }}>
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         transaction.category === 'Revenue' 
                           ? 'bg-green-500/20 text-green-400' 
-                          : 'bg-red-500/20 text-red-400'
+                          : 'bg-yellow-500/20 text-yellow-400'
                       }`}>
                         {transaction.category}
                       </span>
@@ -467,40 +517,22 @@ const Transactions: React.FC = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6">
-            <div className="text-sm" style={{ color: '#D1D1D1' }}>
-              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, sortedTransactions.length)} of {sortedTransactions.length} results
+          <div className="flex justify-between items-center mt-6">
+            <div className="text-gray-400">
+              Page {currentPage} of {totalPages}
             </div>
             <div className="flex space-x-2">
               <button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 rounded-lg text-sm transition-colors duration-200 disabled:opacity-50"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                className="px-3 py-2 rounded-lg border border-white/10 text-white hover:bg-white/5 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-2 rounded-lg text-sm transition-colors duration-200 ${
-                      currentPage === pageNum 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-white/5 text-white hover:bg-white/10'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
               <button
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-2 rounded-lg text-sm transition-colors duration-200 disabled:opacity-50"
-                style={{ backgroundColor: '#1E1E2F', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                className="px-3 py-2 rounded-lg border border-white/10 text-white hover:bg-white/5 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -511,28 +543,30 @@ const Transactions: React.FC = () => {
         {/* Export Modal */}
         {showExportModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-96">
-              <h3 className="text-lg font-semibold mb-4">Export CSV</h3>
+            <div className="rounded-xl p-6 max-w-md w-full mx-4" style={{ backgroundColor: '#2F3246' }}>
+              <h3 className="text-lg font-semibold text-white mb-4">Export CSV</h3>
               
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Select Columns:</label>
-                {allColumns.map((column) => (
-                  <label key={column.key} className="flex items-center mb-2">
-                    <input
-                      type="checkbox"
-                      checked={exportColumns.includes(column.key)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setExportColumns([...exportColumns, column.key]);
-                        } else {
-                          setExportColumns(exportColumns.filter(col => col !== column.key));
-                        }
-                      }}
-                      className="mr-2"
-                    />
-                    {column.label}
-                  </label>
-                ))}
+                <label className="block text-sm font-medium text-white mb-2">Select Columns</label>
+                <div className="space-y-2">
+                  {allColumns.map(column => (
+                    <label key={column.key} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={exportColumns.includes(column.key)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setExportColumns([...exportColumns, column.key]);
+                          } else {
+                            setExportColumns(exportColumns.filter(col => col !== column.key));
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      <span className="text-white">{column.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               
               <div className="mb-4">
@@ -543,22 +577,24 @@ const Transactions: React.FC = () => {
                     onChange={(e) => setIncludeHeaders(e.target.checked)}
                     className="mr-2"
                   />
-                  Include Headers
+                  <span className="text-white">Include Headers</span>
                 </label>
               </div>
               
-              <div className="flex justify-end space-x-2">
+              <div className="flex space-x-2">
                 <button
                   onClick={() => setShowExportModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-white hover:bg-white/5 transition-colors duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleExport}
-                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  disabled={exportLoading || exportColumns.length === 0}
+                  className="flex-1 px-4 py-2 rounded-lg text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: '#00FF84', color: '#000' }}
                 >
-                  Export
+                  {exportLoading ? 'Exporting...' : 'Export'}
                 </button>
               </div>
             </div>

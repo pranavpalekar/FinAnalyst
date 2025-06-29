@@ -22,27 +22,29 @@ A full-stack financial application with dynamic data visualization, advanced fil
    - Column Configuration: User selects which fields to export
    - Auto-download: Automatic file download when ready
    - Configurable date formats and delimiters
+   - **Proper CSV formatting with headers** ✅
 
 4. **Error Handling**
-   - Alert chips for error notifications
+   - **Alert chips for error notifications** ✅
    - Comprehensive error handling throughout the application
    - User-friendly error messages
+   - Toast notifications for success/error states
 
 ## 🛠️ Technical Stack
 
 ### Frontend
 - **Framework**: React.js with TypeScript
 - **State Management**: React Query for server state
-- **Charts**: Chart.js integration ready
+- **Charts**: Recharts for data visualization
 - **UI Library**: Custom design system with Tailwind CSS
-- **Icons**: Heroicons
-- **Notifications**: React Hot Toast
+- **Icons**: Lucide React
+- **Notifications**: React Hot Toast + Custom Error Alert Components
 
 ### Backend
 - **Server**: Node.js with Express and TypeScript
 - **Database**: MongoDB with Mongoose ODM
 - **Authentication**: JWT with bcrypt
-- **File Processing**: json2csv for CSV generation
+- **File Processing**: Custom CSV generation with headers
 - **Validation**: Express-validator
 
 ## 📁 Project Structure
@@ -63,6 +65,7 @@ FinAnalyst/
 ├── frontend/                # React frontend application
 │   ├── src/
 │   │   ├── components/      # Reusable UI components
+│   │   │   └── ErrorAlert.tsx  # Error handling alert chips
 │   │   ├── pages/           # Page components
 │   │   ├── services/        # API services
 │   │   ├── utils/           # Utility functions
@@ -70,6 +73,7 @@ FinAnalyst/
 │   │   └── types/           # TypeScript type definitions
 │   ├── package.json
 │   └── vite.config.ts
+├── Finanalyst_API_Postman_Collection.json  # API documentation
 └── README.md
 ```
 
@@ -100,7 +104,7 @@ PORT=5000
 MONGODB_URI=mongodb://localhost:27017/finanalyst
 JWT_SECRET=your-super-secret-jwt-key
 JWT_EXPIRES_IN=7d
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:3001
 ```
 
 ### 4. Database Setup
@@ -130,13 +134,13 @@ npm install
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:3000`
+The frontend will be available at `http://localhost:3001`
 
 ## 🔐 Authentication
 
-### Test User Credentials
-- **Email**: `test@finanalyst.com`
-- **Password**: `password123`
+### Demo User Credentials
+- **Email**: `demo@finanalyst.com`
+- **Password**: `demo123`
 
 ### JWT Token Flow
 1. User logs in with email/password
@@ -150,8 +154,7 @@ The frontend will be available at `http://localhost:3000`
 ### Authentication
 - `POST /api/auth/login` - User login
 - `POST /api/auth/register` - User registration
-- `POST /api/auth/logout` - User logout
-- `POST /api/auth/refresh` - Refresh JWT token
+- `GET /api/auth/profile` - Get user profile
 
 ### Transactions
 - `GET /api/transactions` - Get transactions with filtering, sorting, pagination
@@ -159,44 +162,43 @@ The frontend will be available at `http://localhost:3000`
 - `POST /api/transactions` - Create new transaction
 - `PUT /api/transactions/:id` - Update transaction
 - `DELETE /api/transactions/:id` - Delete transaction
-- `GET /api/transactions/stats` - Get transaction statistics
-- `GET /api/transactions/filters` - Get available filter options
+- `GET /api/transactions/export-csv` - Export to CSV with headers
 
-### Dashboard
-- `GET /api/dashboard/overview` - Get dashboard overview metrics
-- `GET /api/dashboard/trends` - Get revenue vs expenses trends
-- `GET /api/dashboard/categories` - Get category breakdown
-- `GET /api/dashboard/recent` - Get recent transactions
-- `GET /api/dashboard/top-categories` - Get top performing categories
+### Analytics
+- `GET /api/analytics/summary` - Financial summary
+- `GET /api/analytics/trends` - Monthly trends
+- `GET /api/analytics/categories` - Category breakdown
+- `GET /api/analytics/growth` - Growth rates
 
-### CSV Export
-- `GET /api/csv/config` - Get CSV export configuration options
-- `POST /api/csv/export` - Export transactions to CSV
+### Health
+- `GET /health` - Health check
+- `GET /api/status` - API status
 
 ## 🎨 Features
 
 ### Interactive Dashboard
-- **Real-time Metrics**: Total income, expenses, net income, transaction count
-- **Trend Analysis**: Revenue vs expenses over time
+- **Real-time Metrics**: Total revenue, expenses, net balance, profit margin
+- **Trend Analysis**: Revenue vs expenses over time with multiple chart types
 - **Category Breakdown**: Visual representation of spending patterns
 - **Recent Activity**: Latest transactions with quick actions
 
 ### Advanced Transaction Management
 - **Multi-field Filtering**: Filter by date range, amount, category, status, type
-- **Real-time Search**: Search across description, category, reference, tags
+- **Real-time Search**: Search across user_id, status, category, amount
 - **Column Sorting**: Sort by any column with visual indicators
 - **Pagination**: Efficient data loading with configurable page sizes
 
-### CSV Export System
+### CSV Export System with Headers
 - **Column Selection**: Choose which fields to include in export
-- **Date Format Options**: US, EU, or ISO date formats
-- **Custom Delimiters**: Configure CSV delimiter character
+- **Header Configuration**: Include/exclude CSV headers
 - **Filter Integration**: Export filtered data only
 - **Auto-download**: Automatic file download when ready
+- **Proper Formatting**: Currency formatting, date formatting, proper escaping
 
-### Error Handling
-- **Alert Chips**: User-friendly error notifications
-- **Form Validation**: Real-time input validation
+### Error Handling via Alert Chips
+- **Error Alert Component**: Custom ErrorAlert component with different types
+- **Toast Notifications**: React Hot Toast for success/error messages
+- **Form Validation**: Real-time input validation with error display
 - **Network Error Handling**: Graceful handling of API failures
 - **Authentication Errors**: Automatic logout on token expiration
 
@@ -205,7 +207,7 @@ The frontend will be available at `http://localhost:3000`
 1. **Authentication**: User logs in with JWT authentication
 2. **Dashboard Access**: View financial analytics with charts and transaction tables
 3. **Data Interaction**: Filter, search, and sort transactions dynamically
-4. **Report Generation**: Configure columns and export CSV reports
+4. **Report Generation**: Configure columns and export CSV reports with headers
 5. **File Download**: Download file directly once the report is generated
 
 ## 🔧 Development
@@ -242,11 +244,11 @@ npm run reset-db
 ## 📊 Sample Data
 
 The application includes comprehensive sample data:
-- **Income Transactions**: Salary, freelance, investment, rental income
-- **Expense Transactions**: Housing, utilities, food, transportation, healthcare, entertainment
-- **Multiple Categories**: 20+ predefined categories
+- **Revenue Transactions**: Various income sources
+- **Expense Transactions**: Multiple expense categories
+- **Multiple Categories**: Revenue and Expense categories
 - **Realistic Amounts**: Varied transaction amounts and frequencies
-- **Date Range**: 3 months of historical data
+- **Date Range**: Historical data across multiple months
 
 ## 🎯 Key Features
 
@@ -262,11 +264,12 @@ The application includes comprehensive sample data:
 - **Real-time Search**: Instant search results
 - **Bulk Operations**: Mass transaction operations
 
-### Export Functionality
+### Export Functionality with Headers
 - **Configurable Columns**: Select fields to export
-- **Multiple Formats**: CSV with custom delimiters
+- **Header Options**: Include/exclude CSV headers
 - **Filtered Exports**: Export only filtered data
 - **Auto-download**: Seamless file download experience
+- **Proper Formatting**: Currency, dates, and text properly formatted
 
 ## 🔒 Security Features
 
@@ -333,8 +336,8 @@ Set the following environment variables for production:
 ```json
 POST /api/auth/login
 {
-  "email": "test@finanalyst.com",
-  "password": "password123"
+  "email": "demo@finanalyst.com",
+  "password": "demo123"
 }
 ```
 
@@ -344,10 +347,9 @@ POST /api/auth/login
   "success": true,
   "data": {
     "user": {
-      "id": "user-id",
-      "email": "test@finanalyst.com",
-      "firstName": "John",
-      "lastName": "Doe"
+      "id": "1",
+      "email": "demo@finanalyst.com",
+      "name": "Pranav Palekar"
     },
     "token": "jwt-token-here"
   }
@@ -356,74 +358,59 @@ POST /api/auth/login
 
 #### Get Transactions Request
 ```json
-GET /api/transactions?page=1&limit=10&sortBy=date&sortOrder=desc&category=Food%20%26%20Dining
+GET /api/transactions?page=1&limit=10&sortBy=date&sortOrder=desc&category=Revenue
 ```
 
-#### CSV Export Request
+#### CSV Export Request with Headers
 ```json
-POST /api/csv/export
+POST /api/transactions/export-csv
 {
   "config": {
-    "columns": ["date", "amount", "category", "description", "type"],
-    "dateFormat": "US",
-    "includeHeaders": true,
-    "delimiter": ","
+    "columns": ["date", "amount", "category", "status"],
+    "includeHeaders": true
   },
   "filters": {
     "dateFrom": "2024-01-01",
     "dateTo": "2024-03-31",
-    "type": ["expense"]
+    "category": "Revenue"
   }
 }
 ```
 
-## 🤝 Contributing
+#### CSV Export Response (with headers)
+```csv
+"Date","Amount","Category","Status"
+"Jan 15, 2024","$1,500.00","Revenue","Paid"
+"Jan 20, 2024","$2,300.00","Revenue","Paid"
+"Feb 01, 2024","$800.00","Expense","Pending"
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
+## 🚨 Error Handling Examples
 
-## 📄 License
+### Frontend Error Alert Component
+```tsx
+<ErrorAlert
+  type="error"
+  title="Export Failed"
+  message="Failed to export CSV file. Please try again."
+  onClose={() => setError(null)}
+/>
+```
 
-This project is licensed under the MIT License.
+### Backend Error Response
+```json
+{
+  "success": false,
+  "error": "Invalid date format provided",
+  "statusCode": 400
+}
+```
 
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Contact the development team
-- Check the documentation
-
----
-
-**FinAnalyst** - Professional Financial Portfolio Management Platform 
-
-## 🌐 API Endpoints
-
-### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register` - User registration
-- `GET /api/auth/profile` - Get user profile
-
-### Transactions
-- `GET /api/transactions` - Get all transactions (with filters)
-- `GET /api/transactions/:id` - Get transaction by ID
-- `POST /api/transactions` - Create new transaction
-- `PUT /api/transactions/:id` - Update transaction
-- `DELETE /api/transactions/:id` - Delete transaction
-- `GET /api/transactions/export` - Export to CSV
-
-### Analytics
-- `GET /api/analytics/summary` - Financial summary
-- `GET /api/analytics/trends` - Monthly trends
-- `GET /api/analytics/categories` - Category breakdown
-- `GET /api/analytics/growth` - Growth rates
-
-### Health
-- `GET /health` - Health check
-- `GET /api/status` - API status
+### Toast Notifications
+- **Success**: "Transactions loaded successfully"
+- **Error**: "Failed to load transactions"
+- **Warning**: "No data found for selected filters"
+- **Info**: "Export completed successfully"
 
 ## 📊 Postman Collection
 
@@ -452,6 +439,7 @@ A comprehensive Postman collection is included for testing all API endpoints:
    - Each request includes example data and descriptions
    - Use the "Get All Transactions" request to see the data structure
    - Test filtering with the "Get Transactions with Filters" request
+   - Test CSV export with "Export Transactions to CSV" request
 
 ### Demo Credentials
 - **Email**: `demo@finanalyst.com`
@@ -476,6 +464,7 @@ A comprehensive Postman collection is included for testing all API endpoints:
 - **CSV Export**: Download filtered data as CSV
 - **Respects Filters**: Export includes all applied filters
 - **Formatted Data**: Proper currency and date formatting
+- **Header Configuration**: Include/exclude CSV headers
 
 ## 🎨 UI/UX Features
 
@@ -492,70 +481,18 @@ A comprehensive Postman collection is included for testing all API endpoints:
 - Responsive charts and tables
 - Touch-friendly interactions
 
-## 🔧 Development
-
-### Backend Scripts
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-```
-
-### Frontend Scripts
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
-```
-
-### Database
-The application includes sample data that's automatically loaded. To reset the database:
-```bash
-cd backend
-npm run seed
-```
-
-## 📝 API Documentation
-
-For detailed API documentation, refer to the Postman collection or check the individual route files in the backend.
-
-### Request/Response Examples
-
-**Login Request:**
-```json
-{
-  "email": "demo@finanalyst.com",
-  "password": "demo123"
-}
-```
-
-**Login Response:**
-```json
-{
-  "success": true,
-  "message": "Login successful",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": "1",
-      "name": "Pranav Palekar",
-      "email": "demo@finanalyst.com"
-    }
-  }
-}
-```
-
-**Transaction Filter Example:**
-```
-GET /api/transactions?page=1&limit=10&category=Revenue&startDate=2024-01-01&endDate=2024-12-31&search=payment
-```
+### Error Handling UI
+- **Alert Chips**: Color-coded error/success/warning alerts
+- **Toast Notifications**: Non-intrusive success/error messages
+- **Loading States**: Spinner animations during data loading
+- **Empty States**: Helpful messages when no data is found
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
+4. Add tests for new functionality
 5. Submit a pull request
 
 ## 📄 License
@@ -564,4 +501,11 @@ This project is licensed under the MIT License.
 
 ## 🆘 Support
 
-For support or questions, please open an issue in the repository or contact the development team. 
+For support and questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation
+
+---
+
+**FinAnalyst** - Professional Financial Portfolio Management Platform

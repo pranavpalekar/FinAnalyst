@@ -36,4 +36,47 @@
   .table-cell {
     @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
   }
+}
+
+/* Custom styles for dropdown menus */
+select option {
+  background-color: #2F3246 !important;
+  color: #FFFFFF !important;
+}
+
+select option:hover {
+  background-color: #1E1E2F !important;
+}
+
+/* Ensure dropdown options are visible */
+select:focus option:checked {
+  background-color: #00FF84 !important;
+  color: #000000 !important;
+}
+
+/* Additional styling for better dropdown visibility */
+select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+/* Dark theme scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1E1E2F;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4A4A4A;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6A6A6A;
 } 

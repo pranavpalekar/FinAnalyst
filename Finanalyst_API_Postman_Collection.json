@@ -285,37 +285,27 @@
         {
           "name": "Export Transactions to CSV",
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/api/transactions/export?category=Revenue&startDate=2024-01-01&endDate=2024-12-31&search=payment",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "transactions", "export"],
-              "query": [
-                {
-                  "key": "category",
-                  "value": "Revenue"
-                },
-                {
-                  "key": "startDate",
-                  "value": "2024-01-01"
-                },
-                {
-                  "key": "endDate",
-                  "value": "2024-12-31"
-                },
-                {
-                  "key": "search",
-                  "value": "payment"
-                }
-              ]
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"config\": {\n    \"columns\": [\"date\", \"amount\", \"category\", \"status\"],\n    \"includeHeaders\": true\n  },\n  \"filters\": {\n    \"category\": \"Revenue\",\n    \"dateFrom\": \"2024-01-01\",\n    \"dateTo\": \"2024-12-31\",\n    \"searchTerm\": \"payment\"\n  }\n}"
             },
-            "description": "Export filtered transactions to CSV format. Supports all the same filters as the GET endpoint."
+            "url": {
+              "raw": "{{baseUrl}}/api/transactions/export-csv",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "transactions", "export-csv"]
+            },
+            "description": "Export filtered transactions to CSV format with headers. Supports all the same filters as the GET endpoint."
           }
         }
       ]
